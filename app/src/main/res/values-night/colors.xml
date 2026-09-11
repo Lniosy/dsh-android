@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="zsdsh_bg">#151517</color>
+    <color name="zsdsh_dock">#2C2C2E</color>
+    <color name="zsdsh_panel">#1C1C1F</color>
+    <color name="zsdsh_text">#E8EEF8</color>
+    <color name="zsdsh_muted">#8A93A6</color>
+    <color name="zsdsh_ok">#3DDC97</color>
+    <color name="zsdsh_warn">#F5C16C</color>
+    <color name="zsdsh_bad">#F07178</color>
+    <color name="zsdsh_accent">#4D6BFE</color>
+</resources>

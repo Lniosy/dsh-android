@@ -1,0 +1,121 @@
+# dsh
+
+非官方 Android 客户端，用来在手机上跑 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/dsh)。
+
+官方没有 Android 客户端。本仓库不重写 DSH：Kotlin 壳启动内嵌 Node，再用 WebView 打开官方 Web UI。
+
+桌面图标名：**dsh**。包名：`com.zsdsh.dsh`。
+
+## 它怎么跑
+
+```
+手机屏幕
+  └── WebView  ← token →  127.0.0.1:3080  官方 dsh web
+                              ▲
+                              │  node --expose-internals bin.js web
+                              │  --host 127.0.0.1 --port 3080 --no-open
+                              │
+应用私有目录 files/payload/
+  ├── runtime/<abi>/bin/node     bionic Node（按 ABI 选）
+  ├── dshroot/                   @deepseek-ai/dsh 内核
+  └── dshhome/                   配置、凭证（本机写入，不进仓库）
+
+特权桥  127.0.0.1:3091
+  Root(su -c) 优先，Shizuku 兜底
+```
+
+| 层 | 做什么 |
+|---|---|
+| `app/` | Kotlin 壳：引擎保活、WebView、特权桥 |
+| `plugins/dsh-tool-android/` | DSH 工具插件，调本机特权桥 |
+| `config/cordis.patch.yml` | 关掉 Android 上不可用的沙箱，注入插件 |
+| `scripts/` | 组装本地 payload（不进 git） |
+| `runtime/` | 本机准备的 node / dshroot / 凭证，**不入库** |
+
+## 硬限制
+
+| 项 | 值 | 原因 |
+|---|---|---|
+| `targetSdk` | **必须 28** | ≥29 应用私有目录 noexec，内嵌 node 会 `EACCES` |
+| `minSdk` | 24 | — |
+| 特权 | Root 优先，Shizuku 兜底 | 没有特权时工具会说明，不假装成功 |
+| 密钥 | 设备上自己填 | 仓库和 APK **都不带** API Key |
+
+真机实测路径：arm64 + Magisk。雷电要用 x86_64 的 bionic node；社区 APK 里常见的是 aarch64，模拟器上会 `Exec format error`。
+
+## 自己编
+
+需要 JDK 17、Android SDK。
+
+```bash
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export ANDROID_HOME=$HOME/Library/Android/sdk
+./gradlew :app:assembleDebug
+```
+
+产物：`app/build/outputs/apk/debug/app-debug.apk`。Debug 包里**没有** node / dshroot / 密钥。
+
+## 准备运行时
+
+仓库只含壳。要在本机先备好 payload，再推进设备。
+
+```
+runtime/payload/
+  runtime/<abi>/bin/node     # arm64-v8a 真机；x86_64 雷电
+  runtime/<abi>/lib/*.so
+  dshroot/                   # @deepseek-ai/dsh 解包结果
+  dshhome/                   # 空目录即可
+```
+
+```bash
+# 把插件和 patch 拷进 payload 目录结构
+bash scripts/prepare-runtime.sh
+
+# 若本机已 npm 安装 @deepseek-ai/dsh@0.1.5-rc.1，可再组装
+# bash scripts/assemble-payload.sh
+
+adb push runtime/payload /data/data/com.zsdsh.dsh/files/payload
+```
+
+装好 App 后也可以把 payload 放到：
+
+```
+/sdcard/dsh/payload
+```
+
+启动时会尝试导入到应用私有目录。
+
+API Key **不要**写进仓库。在 DSH Web UI 里填，或把 `.credentials.yaml` 放到设备上的 `dshhome/`。参考格式：
+
+```yaml
+version: 1
+
+refs:
+  DEEPSEEK_API_KEY: sk-你自己的key
+```
+
+## 权限桥
+
+只绑本机回环，不对外网开放。
+
+```
+GET  /v1/status
+POST /v1/exec   {"cmd":"...","timeoutMs":30000,"prefer":"ROOT|SHIZUKU"}
+```
+
+顺序：Root → Shizuku。都没有时返回引导信息。
+
+## 不在仓库里的东西
+
+这些路径已被 `.gitignore` 挡住，开源仓库里不应出现：
+
+- `runtime/payload/`、`runtime/work/`、本机 Node
+- `**/.credentials.yaml`、`.env*`
+- `local.properties`（本机 SDK 路径）
+- `*.apk`、签名密钥
+
+本项目与 DeepSeek 官方无隶属关系。DSH 内核版权归其各自作者。
+
+## License
+
+MIT

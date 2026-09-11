@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">dsh</string>
+    <string name="grant_shizuku">授权 Shizuku</string>
+    <string name="start_engine">启动引擎</string>
+    <string name="restart_engine">重新启动</string>
+    <string name="open_ui">打开 DSH</string>
+    <string name="collapse_chrome">收起</string>
+</resources>
