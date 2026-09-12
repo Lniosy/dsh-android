@@ -43,9 +43,18 @@
 
 真机实测路径：arm64 + Magisk。雷电要用 x86_64 的 bionic node；社区 APK 里常见的是 aarch64，模拟器上会 `Exec format error`。
 
+## 小白怎么用
+
+1. 安装完整版 APK（里面已经带了 Node + DSH 内核）。
+2. 打开 **dsh**，第一次会解压大约一分钟，然后自动打开界面。
+3. 在顶栏粘贴自己的 DeepSeek API Key，点「保存并继续」。
+4. 有 Root 最好；没有就装 Shizuku 并授权。
+
+API Key **不会**打进 APK，也不进 git。每人用自己的。
+
 ## 自己编
 
-需要 JDK 17、Android SDK。
+需要 JDK 17、Android SDK。本机若已有 `runtime/payload/`，`./gradlew :app:assembleDebug` 会自动打进约 60MB 的 `payload.zip`，装完即可用。
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
@@ -53,46 +62,38 @@ export ANDROID_HOME=$HOME/Library/Android/sdk
 ./gradlew :app:assembleDebug
 ```
 
-产物：`app/build/outputs/apk/debug/app-debug.apk`。Debug 包里**没有** node / dshroot / 密钥。
+产物：`app/build/outputs/apk/debug/app-debug.apk`。
 
-## 准备运行时
+| APK 种类 | 条件 | 装完能否直接用 |
+|---|---|---|
+| 完整版 | 编译机能看到 `runtime/payload/` | 能。首次打开自动解压 |
+| 瘦包 | 没有本地 payload | 不能。还要自己塞运行时 |
 
-仓库只含壳。要在本机先备好 payload，再推进设备。
+密钥永远不进 APK。
+
+## payload 是什么
+
+DSH 官方是电脑上的 Node 程序。手机要跑它，得自带一份能执行的运行时，我们叫它 **payload**：
 
 ```
-runtime/payload/
-  runtime/<abi>/bin/node     # arm64-v8a 真机；x86_64 雷电
-  runtime/<abi>/lib/*.so
-  dshroot/                   # @deepseek-ai/dsh 解包结果
-  dshhome/                   # 空目录即可
+payload/
+  runtime/<abi>/bin/node     给 Android 用的 Node
+  dshroot/                   @deepseek-ai/dsh 内核
+  dshhome/                   配置和 Key（只在手机上，不进 APK）
 ```
+
+完整版 APK 把前两样压成 `payload.zip` 打进去。打开 App 时解压到 `files/payload/`。Git 仓库里没有这份东西（太大，也避免误提交密钥）。
+
+开发者本机准备：
 
 ```bash
-# 把插件和 patch 拷进 payload 目录结构
 bash scripts/prepare-runtime.sh
-
-# 若本机已 npm 安装 @deepseek-ai/dsh@0.1.5-rc.1，可再组装
+# 本机已 npm 安装 @deepseek-ai/dsh@0.1.5-rc.1 时：
 # bash scripts/assemble-payload.sh
-
-adb push runtime/payload /data/data/com.zsdsh.dsh/files/payload
+python3 scripts/pack-bundled-payload.py
 ```
 
-装好 App 后也可以把 payload 放到：
-
-```
-/sdcard/dsh/payload
-```
-
-启动时会尝试导入到应用私有目录。
-
-API Key **不要**写进仓库。在 DSH Web UI 里填，或把 `.credentials.yaml` 放到设备上的 `dshhome/`。参考格式：
-
-```yaml
-version: 1
-
-refs:
-  DEEPSEEK_API_KEY: sk-你自己的key
-```
+没有完整版 APK 时，也可以把目录放到 `/sdcard/dsh/payload`，启动时会导入。
 
 ## 权限桥
 

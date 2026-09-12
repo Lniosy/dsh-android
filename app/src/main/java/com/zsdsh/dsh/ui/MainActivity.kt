@@ -39,6 +39,8 @@ class MainActivity : AppCompatActivity(), Shizuku.OnRequestPermissionResultListe
     private var uiLoaded = false
     private var waitingUi = false
     private var chromeExpanded = false
+    private var preparing = false
+    private var prepareHint: String? = null
     private var statusBarTop = 0
     private var navInsetCssPx = 0f
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -80,10 +82,62 @@ class MainActivity : AppCompatActivity(), Shizuku.OnRequestPermissionResultListe
             chromeExpanded = true
             refresh()
         }
-        if (ZsdshApp.instance.engine.paths.importIfNeeded() || ZsdshApp.instance.engine.paths.ready()) {
-            EngineService.start(this)
-            waitForEngineUi()
+        binding.btnSaveKey.setOnClickListener { saveApiKeyAndStart() }
+        prepareRuntimeThenStart()
+        refresh()
+    }
+
+    private fun prepareRuntimeThenStart() {
+        if (ZsdshApp.instance.engine.paths.ready()) {
+            startEngineIfReady()
+            return
         }
+        preparing = true
+        prepareHint = "正在准备内置运行时…"
+        refresh()
+        poller.execute {
+            val ok = try {
+                ZsdshApp.instance.engine.paths.prepare { msg ->
+                    mainHandler.post {
+                        prepareHint = msg
+                        binding.hintText.visibility = android.view.View.VISIBLE
+                        binding.hintText.text = msg
+                    }
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    prepareHint = e.message ?: "展开运行时失败"
+                }
+                false
+            }
+            mainHandler.post {
+                preparing = false
+                prepareHint = if (ok) null else (prepareHint ?: "展开运行时失败")
+                startEngineIfReady()
+                refresh()
+            }
+        }
+    }
+
+    private fun startEngineIfReady() {
+        if (!ZsdshApp.instance.engine.paths.ready()) return
+        if (ZsdshApp.instance.engine.isRunning()) {
+            waitForEngineUi()
+            return
+        }
+        EngineService.start(this)
+        waitForEngineUi()
+    }
+
+    private fun saveApiKeyAndStart() {
+        val key = binding.keyInput.text?.toString().orEmpty()
+        if (!ZsdshApp.instance.engine.paths.saveApiKey(key)) {
+            binding.hintText.visibility = android.view.View.VISIBLE
+            binding.hintText.text = "Key 太短，请粘贴完整的 DeepSeek API Key。"
+            return
+        }
+        binding.keyInput.text = null
+        startEngineIfReady()
         refresh()
     }
 
@@ -330,6 +384,7 @@ class MainActivity : AppCompatActivity(), Shizuku.OnRequestPermissionResultListe
             PrivilegeKind.NONE -> "无特权通道"
         }
         val engineHint = when {
+            preparing -> "正在展开运行时"
             engine.isRunning() -> "引擎运行中"
             engine.lastError != null -> "引擎失败：${engine.lastError}"
             engine.paths.ready() -> "引擎未启动"
@@ -359,18 +414,28 @@ class MainActivity : AppCompatActivity(), Shizuku.OnRequestPermissionResultListe
         }
         binding.btnChrome.visibility = android.view.View.GONE
         binding.btnChrome.text = getString(R.string.collapse_chrome)
-        val showHint = !engine.isRunning() || engine.lastError != null
+        val needKey = !engine.paths.hasCredentials()
+        binding.keyRow.visibility = if (needKey && !preparing) android.view.View.VISIBLE else android.view.View.GONE
+        val showHint = preparing || !engine.isRunning() || engine.lastError != null || needKey
         binding.hintText.visibility = if (showHint) android.view.View.VISIBLE else android.view.View.GONE
         binding.chromeBar.visibility = if (showFullChrome) android.view.View.VISIBLE else android.view.View.GONE
         binding.peekChip.visibility = if (canCollapse && !chromeExpanded) android.view.View.VISIBLE else android.view.View.GONE
-        binding.hintText.text = buildString {
-            append("权限：Root 优先，Shizuku 兜底。桥 127.0.0.1:3091\n")
-            append("Root=${status.root}  Shizuku binder=${status.shizukuBinder} 授权=${status.shizukuGranted}\n")
-            if (!engine.paths.ready()) {
-                append("把对应 ABI 的 node + dshroot 放到 App files/payload/ 后点启动引擎。")
-            } else if (!engine.isRunning()) {
-                append("点「启动引擎」后会打开官方 DSH Web UI。")
+        if (!preparing) {
+            binding.hintText.text = buildString {
+                if (prepareHint != null && !engine.paths.ready()) {
+                    append(prepareHint)
+                    append('\n')
+                }
+                if (needKey) {
+                    append("装好就能开界面。聊天前先在上面粘贴自己的 DeepSeek API Key。\n")
+                }
+                append("权限：Root 优先，Shizuku 兜底。\n")
+                if (!engine.paths.ready() && !preparing) {
+                    append("完整版 APK 会自带运行时；若仍缺，把 payload 放到 /sdcard/dsh/payload。")
+                }
             }
+        } else if (prepareHint != null) {
+            binding.hintText.text = prepareHint
         }
         if (engine.isRunning() && !uiLoaded) {
             waitForEngineUi()

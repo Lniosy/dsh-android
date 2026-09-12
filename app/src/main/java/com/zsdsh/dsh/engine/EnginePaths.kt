@@ -9,6 +9,8 @@ class EnginePaths(private val context: Context) {
     val dshHome: File = File(payloadDir, "dshhome")
     val dshRoot: File = File(payloadDir, "dshroot")
     val workspace: File = File(context.getExternalFilesDir(null), "workspace")
+    private val unpacker = PayloadUnpacker(context)
+    private val prepareLock = Any()
 
     fun abiList(): List<String> = Build.SUPPORTED_ABIS.toList()
 
@@ -49,14 +51,48 @@ class EnginePaths(private val context: Context) {
         File(context.getExternalFilesDir(null), "import-payload"),
     )
 
-    fun importIfNeeded(): Boolean {
-        if (ready()) return true
-        val src = importCandidates().firstOrNull { File(it, "dshroot").isDirectory || File(it, "runtime").isDirectory }
-            ?: return false
-        src.copyRecursively(payloadDir, overwrite = true)
-        importCredentials()
-        return ready()
+    fun hasCredentials(): Boolean {
+        val dest = File(dshHome, ".credentials.yaml")
+        return dest.isFile && dest.length() > 20
     }
+
+    fun saveApiKey(key: String): Boolean {
+        val trimmed = key.trim()
+        if (trimmed.length < 8) return false
+        dshHome.mkdirs()
+        val dest = File(dshHome, ".credentials.yaml")
+        dest.writeText("version: 1\n\nrefs:\n  DEEPSEEK_API_KEY: $trimmed\n")
+        dest.setReadable(false, false)
+        dest.setReadable(true, true)
+        dest.setWritable(false, false)
+        dest.setWritable(true, true)
+        return dest.isFile
+    }
+
+    fun prepare(onProgress: ((String) -> Unit)? = null): Boolean = synchronized(prepareLock) {
+        ensureDirs()
+        if (ready()) {
+            importCredentials()
+            return true
+        }
+        if (unpacker.hasBundle()) {
+            onProgress?.invoke("正在展开内置运行时…")
+            unpacker.extract(payloadDir, onProgress)
+        }
+        if (!ready()) {
+            val src = importCandidates().firstOrNull {
+                File(it, "dshroot").isDirectory || File(it, "runtime").isDirectory
+            }
+            if (src != null) {
+                onProgress?.invoke("正在导入外部运行时…")
+                src.copyRecursively(payloadDir, overwrite = true)
+            }
+        }
+        importCredentials()
+        ready()
+    }
+
+    fun importIfNeeded(): Boolean = prepare(null)
 
     /** 只从 sdcard 导入 Key，绝不打进 APK。 */
     fun importCredentials(): Boolean {

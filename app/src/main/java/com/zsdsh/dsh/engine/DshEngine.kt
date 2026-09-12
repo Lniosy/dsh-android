@@ -26,7 +26,7 @@ class DshEngine(private val context: Context) {
         val node = paths.nodeFile()
         val bin = paths.binJs()
         if (node == null || !node.isFile) {
-            lastError = "缺少 Node 运行时。按 ABI=${paths.abiList()} 放到 /sdcard/dsh/payload/runtime/<abi>/bin/node"
+            lastError = "缺少 Node 运行时。请安装完整 APK，或按 ABI=${paths.abiList()} 放入 files/payload/runtime/<abi>/bin/node"
             return false
         }
         if (bin == null) {
@@ -68,6 +68,15 @@ class DshEngine(private val context: Context) {
             builder.environment().clear()
             builder.environment().putAll(env)
             process = builder.start()
+            Thread.sleep(250)
+            if (process?.isAlive != true) {
+                lastError = log.takeIf { it.isFile }?.readLines()?.lastOrNull().orEmpty()
+                    .ifBlank { "node 启动后立刻退出" }
+                process = null
+                started.set(false)
+                Log.e(TAG, "dsh exited immediately: $lastError")
+                return false
+            }
             started.set(true)
             lastError = null
             Log.i(TAG, "dsh started abi=${Build.SUPPORTED_ABIS.firstOrNull()} pid=${pidOf(process)}")

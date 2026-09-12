@@ -12,8 +12,8 @@ android {
         minSdk = 24
         // node 在应用私有目录 exec：targetSdk>=29 会 noexec，必须锁 28
         targetSdk = 28
-        versionCode = 2
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.1.1"
     }
 
     buildTypes {
@@ -44,7 +44,28 @@ android {
             useLegacyPackaging = true
         }
     }
+
+    androidResources {
+        noCompress += "zip"
+    }
+
+    sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/bundled-assets"))
 }
+
+val packBundledPayload = tasks.register<Exec>("packBundledPayload") {
+    workingDir = rootProject.projectDir
+    val zip = layout.buildDirectory.file("generated/bundled-assets/payload.zip")
+    commandLine(
+        "python3",
+        rootProject.file("scripts/pack-bundled-payload.py").absolutePath,
+        zip.get().asFile.absolutePath,
+    )
+    onlyIf {
+        rootProject.file("runtime/payload/dshroot/node_modules/@deepseek-ai/dsh").isDirectory
+    }
+}
+
+tasks.named("preBuild").configure { dependsOn(packBundledPayload) }
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")

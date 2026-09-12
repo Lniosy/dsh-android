@@ -16,6 +16,7 @@ DeepSeek Harness 的安卓原生壳。桌面图标显示 **dsh**。官方 DSH �
 | `plugins/dsh-tool-android/` | DSH 工具插件，调本机特权桥 |
 | `config/cordis.patch.yml` | 注入插件、关掉 Android 上不可用的沙箱 |
 | `scripts/prepare-runtime.sh` | 组装 payload 目录 |
+| `scripts/pack-bundled-payload.py` | 打 APK 内嵌包，不含密钥 |
 | `runtime/payload/` | 本地准备的 node + dshroot，不入库 |
 
 ## 权限桥
@@ -37,12 +38,7 @@ export ANDROID_HOME=$HOME/Library/Android/sdk
 
 产物：`app/build/outputs/apk/debug/app-debug.apk`
 
-运行时（真机 arm64 / 雷电 x86_64 分开准备）：
-
-```bash
-bash scripts/prepare-runtime.sh
-adb push runtime/payload /data/data/com.zsdsh.dsh/files/payload
-```
+本机有 `runtime/payload/` 时会打进完整版 APK，装完自动解压。不要把 `.credentials.yaml` 打进包。
 
 ## 雷电
 

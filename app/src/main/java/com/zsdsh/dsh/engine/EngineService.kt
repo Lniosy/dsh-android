@@ -17,10 +17,12 @@ class EngineService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureChannel()
         startForeground(NOTIF_ID, notification("DeepSeek Harness 运行中"))
-        val engine = ZsdshApp.instance.engine
-        if (!engine.start()) {
-            startForeground(NOTIF_ID, notification(engine.lastError ?: "引擎未启动"))
-        }
+        Thread({
+            val engine = ZsdshApp.instance.engine
+            if (!engine.start()) {
+                startForeground(NOTIF_ID, notification(engine.lastError ?: "引擎未启动"))
+            }
+        }, "dsh-engine-start").start()
         return START_STICKY
     }
 

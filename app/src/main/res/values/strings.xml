@@ -6,4 +6,6 @@
     <string name="restart_engine">重新启动</string>
     <string name="open_ui">打开 DSH</string>
     <string name="collapse_chrome">收起</string>
+    <string name="api_key_hint">粘贴 DeepSeek API Key</string>
+    <string name="save_api_key">保存并继续</string>
 </resources>
