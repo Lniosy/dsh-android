@@ -1,10 +1,30 @@
-# dsh
+<p align="center">
+  <img src="docs/logo.svg" width="96" alt="dsh">
+</p>
 
-非官方 Android 客户端，用来在手机上跑 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/dsh)。
+<h1 align="center">dsh</h1>
+
+<p align="center">非官方 Android 客户端，用来在手机上跑 <a href="https://github.com/deepseek-ai/dsh">DeepSeek Harness (DSH)</a>。</p>
 
 官方没有 Android 客户端。本仓库不重写 DSH：Kotlin 壳启动内嵌 Node，再用 WebView 打开官方 Web UI。
 
-桌面图标名：**dsh**。包名：`com.zsdsh.dsh`。
+桌面图标名：**dsh**。包名：`com.zsdsh.dsh`。Logo 用的是官方 DSH 鲸鱼标。
+
+## 真机界面
+
+截自小米 K70（arm64）上正在跑的 dsh。第一次打开会先看到原生顶栏，引擎起来后就是下面这些官方页面。
+
+| 对话 | 侧栏 |
+|:---:|:---:|
+| <img src="docs/screenshots/chat.png" width="240" alt="对话"> | <img src="docs/screenshots/sidebar.png" width="240" alt="侧栏"> |
+
+| 通用设置 | 模型 |
+|:---:|:---:|
+| <img src="docs/screenshots/settings.png" width="240" alt="通用设置"> | <img src="docs/screenshots/models.png" width="240" alt="模型"> |
+
+| 插件 | Agent 预设 |
+|:---:|:---:|
+| <img src="docs/screenshots/plugins.png" width="240" alt="插件"> | <img src="docs/screenshots/presets.png" width="240" alt="Agent 预设"> |
 
 ## 它怎么跑
 
